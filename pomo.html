@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pomodoro Timer Pro</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        * { font-family: 'Inter', system-ui, sans-serif; }
+        
+        .progress-ring {
+            transition: stroke-dashoffset 1s linear;
+        }
+        
+        .task-item:hover {
+            transform: translateX(4px);
+        }
+        
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+            50% { box-shadow: 0 0 30px rgba(59, 130, 246, 0.6); }
+        }
+        
+        .active-timer {
+            animation: glow 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 min-h-screen">
+    
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">
+                <i class="fas fa-clock text-blue-500"></i> Pomodoro Pro
+            </h1>
+            <div class="flex gap-3">
+                <button onclick="toggleTheme()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
+                    <i id="themeIcon" class="fas fa-moon text-gray-700 dark:text-gray-300"></i>
+                </button>
+                <button onclick="showStats()" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">
+                    <i class="fas fa-chart-line"></i> Stats
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8 max-w-6xl">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Timer Section -->
+            <div class="lg:col-span-2">
+                <div id="timerCard" class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+                    
+                    <!-- Mode Tabs -->
+                    <div class="flex gap-2 mb-8">
+                        <button onclick="changeMode('work')" class="mode-btn flex-1 py-3 rounded-lg font-semibold transition bg-blue-500 text-white">
+                            <i class="fas fa-briefcase"></i> Work
+                        </button>
+                        <button onclick="changeMode('short')" class="mode-btn flex-1 py-3 rounded-lg font-semibold transition bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                            <i class="fas fa-coffee"></i> Short Break
+                        </button>
+                        <button onclick="changeMode('long')" class="mode-btn flex-1 py-3 rounded-lg font-semibold transition bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                            <i class="fas fa-spa"></i> Long Break
+                        </button>
+                    </div>
+
+                    <!-- Timer Display -->
+                    <div class="flex flex-col items-center mb-8">
+                        <!-- Progress Circle -->
+                        <div class="relative w-72 h-72 mb-6">
+                            <svg class="w-full h-full -rotate-90">
+                                <circle cx="144" cy="144" r="130" stroke="#e5e7eb" stroke-width="8" fill="none"/>
+                                <circle id="progressCircle" cx="144" cy="144" r="130" stroke="#3b82f6" stroke-width="8" 
+                                        fill="none" class="progress-ring" stroke-linecap="round"
+                                        stroke-dasharray="817" stroke-dashoffset="0"/>
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <div id="timeDisplay" class="text-6xl font-bold text-gray-800 dark:text-white">25:00</div>
+                                <div id="sessionLabel" class="text-lg text-gray-500 dark:text-gray-400 mt-2">Ready to focus</div>
+                            </div>
+                        </div>
+
+                        <!-- Control Buttons -->
+                        <div class="flex gap-4">
+                            <button id="startBtn" onclick="startTimer()" class="px-8 py-4 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition shadow-lg">
+                                <i class="fas fa-play"></i> Start
+                            </button>
+                            <button id="pauseBtn" onclick="pauseTimer()" class="hidden px-8 py-4 bg-yellow-500 text-white rounded-xl font-semibold hover:bg-yellow-600 transition shadow-lg">
+                                <i class="fas fa-pause"></i> Pause
+                            </button>
+                            <button onclick="resetTimer()" class="px-8 py-4 bg-gray-500 text-white rounded-xl font-semibold hover:bg-gray-600 transition shadow-lg">
+                                <i class="fas fa-redo"></i> Reset
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Settings -->
+                    <div class="border-t dark:border-gray-700 pt-6">
+                        <h3 class="text-lg font-semibold mb-4 text-gray-800 dark:text-white">
+                            <i class="fas fa-cog"></i> Timer Settings
+                        </h3>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Work (min)</label>
+                                <input type="number" id="workDuration" value="25" min="1" max="60" onchange="updateSettings()"
+                                       class="w-full px-4 py-2 rounded-lg border dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Short (min)</label>
+                                <input type="number" id="shortDuration" value="5" min="1" max="30" onchange="updateSettings()"
+                                       class="w-full px-4 py-2 rounded-lg border dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Long (min)</label>
+                                <input type="number" id="longDuration" value="15" min="1" max="60" onchange="updateSettings()"
+                                       class="w-full px-4 py-2 rounded-lg border dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tasks Section -->
+            <div class="lg:col-span-1">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+                    <h3 class="text-xl font-bold mb-4 text-gray-800 dark:text-white">
+                        <i class="fas fa-tasks"></i> Tasks
+                    </h3>
+                    
+                    <!-- Add Task Form -->
+                    <div class="mb-4">
+                        <input type="text" id="taskInput" placeholder="What are you working on?" 
+                               class="w-full px-4 py-3 rounded-lg border dark:bg-gray-700 dark:border-gray-600 dark:text-white mb-2"
+                               onkeypress="if(event.key==='Enter') addTask()">
+                        <div class="flex gap-2">
+                            <input type="number" id="taskPomodoros" value="1" min="1" max="20" 
+                                   class="w-16 px-3 py-2 rounded-lg border dark:bg-gray-700 dark:border-gray-600 dark:text-white text-center">
+                            <button onclick="addTask()" class="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">
+                                <i class="fas fa-plus"></i> Add Task
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Task List -->
+                    <div id="taskList" class="space-y-2 max-h-96 overflow-y-auto">
+                        <p class="text-gray-500 dark:text-gray-400 text-center py-8 text-sm">
+                            <i class="fas fa-clipboard-list text-3xl mb-2 block"></i>
+                            No tasks yet. Add one to get started!
+                        </p>
+                    </div>
+
+                    <!-- Active Task Display -->
+                    <div id="activeTask" class="hidden mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Current Task:</p>
+                        <p id="activeTaskName" class="font-semibold text-gray-800 dark:text-white mb-2"></p>
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                <div id="activeTaskProgress" class="bg-blue-500 h-2 rounded-full transition-all" style="width: 0%"></div>
+                            </div>
+                            <span id="activeTaskText" class="text-xs font-medium text-gray-600 dark:text-gray-400">0/0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Stats Modal -->
+    <div id="statsModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 dark:text-white">
+                    <i class="fas fa-chart-bar text-blue-500"></i> Your Statistics
+                </h2>
+                <button onclick="hideStats()" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-3 gap-4 mb-8">
+                <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white text-center">
+                    <i class="fas fa-check-circle text-3xl mb-2"></i>
+                    <p class="text-sm opacity-90">Sessions</p>
+                    <p id="totalSessions" class="text-4xl font-bold">0</p>
+                </div>
+                <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white text-center">
+                    <i class="fas fa-clock text-3xl mb-2"></i>
+                    <p class="text-sm opacity-90">Focus Time</p>
+                    <p id="totalTime" class="text-3xl font-bold">0h</p>
+                </div>
+                <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white text-center">
+                    <i class="fas fa-fire text-3xl mb-2"></i>
+                    <p class="text-sm opacity-90">Streak</p>
+                    <p id="currentStreak" class="text-4xl font-bold">0</p>
+                </div>
+            </div>
+
+            <button onclick="clearStats()" class="w-full py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition">
+                <i class="fas fa-trash"></i> Clear All Statistics
+            </button>
+        </div>
+    </div>
+
+    <!-- Audio Element -->
+    <audio id="notificationSound" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3"></audio>
+
+    <script>
+        // ==================== STATE ====================
+        let state = {
+            mode: 'work',
+            timeLeft: 1500,
+            totalTime: 1500,
+            isRunning: false,
+            sessionCount: 1,
+            currentTaskId: null,
+            interval: null
+        };
+
+        let settings = {
+            work: 25,
+            short: 5,
+            long: 15
+        };
+
+        let tasks = [];
+        let stats = {
+            sessions: 0,
+            focusTime: 0,
+            streak: 0
+        };
+
+        // ==================== INITIALIZATION ====================
+        function init() {
+            loadData();
+            updateDisplay();
+            applyTheme();
+            requestNotificationPermission();
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' && e.target.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    state.isRunning ? pauseTimer() : startTimer();
+                }
+            });
+        }
+
+        // ==================== TIMER FUNCTIONS ====================
+        function startTimer() {
+            if (state.isRunning) return;
+            
+            state.isRunning = true;
+            document.getElementById('startBtn').classList.add('hidden');
+            document.getElementById('pauseBtn').classList.remove('hidden');
+            document.getElementById('timerCard').classList.add('active-timer');
+            
+            state.interval = setInterval(() => {
+                state.timeLeft--;
+                
+                if (state.timeLeft < 0) {
+                    completeSession();
+                    return;
+                }
+                
+                updateDisplay();
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            state.isRunning = false;
+            clearInterval(state.interval);
+            document.getElementById('startBtn').classList.remove('hidden');
+            document.getElementById('pauseBtn').classList.add('hidden');
+            document.getElementById('timerCard').classList.remove('active-timer');
+        }
+
+        function resetTimer() {
+            pauseTimer();
+            const duration = settings[state.mode] * 60;
+            state.timeLeft = duration;
+            state.totalTime = duration;
+            updateDisplay();
+        }
+
+        function completeSession() {
+            clearInterval(state.interval);
+            playNotification();
+            
+            if (state.mode === 'work') {
+                stats.sessions++;
+                stats.focusTime += settings.work;
+                stats.streak++;
+                
+                // Update current task
+                if (state.currentTaskId) {
+                    const task = tasks.find(t => t.id === state.currentTaskId);
+                    if (task) {
+                        task.completed++;
+                        if (task.completed >= task.total) {
+                            task.done = true;
+                            state.currentTaskId = null;
+                        }
+                        renderTasks();
+                    }
+                }
+                
+                state.sessionCount++;
+                changeMode(state.sessionCount % 4 === 0 ? 'long' : 'short');
+            } else {
+                changeMode('work');
+            }
+            
+            saveData();
+        }
+
+        function changeMode(mode) {
+            pauseTimer();
+            state.mode = mode;
+            
+            const duration = settings[mode] * 60;
+            state.timeLeft = duration;
+            state.totalTime = duration;
+            
+            // Update mode buttons
+            const buttons = document.querySelectorAll('.mode-btn');
+            buttons.forEach((btn, idx) => {
+                const modes = ['work', 'short', 'long'];
+                if (modes[idx] === mode) {
+                    btn.className = 'mode-btn flex-1 py-3 rounded-lg font-semibold transition bg-blue-500 text-white';
+                } else {
+                    btn.className = 'mode-btn flex-1 py-3 rounded-lg font-semibold transition bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300';
+                }
+            });
+            
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            const minutes = Math.floor(state.timeLeft / 60);
+            const seconds = state.timeLeft % 60;
+            
+            document.getElementById('timeDisplay').textContent = 
+                `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            
+            const labels = {
+                work: `Session ${state.sessionCount}`,
+                short: 'Short Break',
+                long: 'Long Break'
+            };
+            document.getElementById('sessionLabel').textContent = labels[state.mode];
+            
+            // Update progress circle
+            const progress = 1 - (state.timeLeft / state.totalTime);
+            const circumference = 2 * Math.PI * 130;
+            const offset = circumference * (1 - progress);
+            document.getElementById('progressCircle').style.strokeDashoffset = offset;
+            
+            // Update page title
+            document.title = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')} - Pomodoro Pro`;
+        }
+
+        function updateSettings() {
+            settings.work = parseInt(document.getElementById('workDuration').value);
+            settings.short = parseInt(document.getElementById('shortDuration').value);
+            settings.long = parseInt(document.getElementById('longDuration').value);
+            
+            if (!state.isRunning) {
+                const duration = settings[state.mode] * 60;
+                state.timeLeft = duration;
+                state.totalTime = duration;
+                updateDisplay();
+            }
+            
+            saveData();
+        }
+
+        // ==================== TASK FUNCTIONS ====================
+        function addTask() {
+            const input = document.getElementById('taskInput');
+            const pomodoros = document.getElementById('taskPomodoros');
+            
+            if (!input.value.trim()) return;
+            
+            const task = {
+                id: Date.now(),
+                name: input.value.trim(),
+                total: parseInt(pomodoros.value),
+                completed: 0,
+                done: false
+            };
+            
+            tasks.unshift(task);
+            renderTasks();
+            saveData();
+            
+            input.value = '';
+            pomodoros.value = 1;
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('taskList');
+            
+            if (tasks.length === 0) {
+                container.innerHTML = `
+                    <p class="text-gray-500 dark:text-gray-400 text-center py-8 text-sm">
+                        <i class="fas fa-clipboard-list text-3xl mb-2 block"></i>
+                        No tasks yet. Add one to get started!
+                    </p>`;
+                return;
+            }
+            
+            container.innerHTML = tasks.map(task => `
+                <div class="task-item p-3 bg-gray-50 dark:bg-gray-700 rounded-lg transition-all ${task.done ? 'opacity-50' : ''}">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-2">
+                                <button onclick="toggleTask(${task.id})" 
+                                        class="w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${task.done ? 'bg-green-500 border-green-500' : 'border-gray-300 dark:border-gray-600'}">
+                                    ${task.done ? '<i class="fas fa-check text-white text-xs"></i>' : ''}
+                                </button>
+                                <span class="font-semibold text-sm text-gray-800 dark:text-white truncate ${task.done ? 'line-through' : ''}">${task.name}</span>
+                            </div>
+                            <div class="flex items-center gap-2 ml-7">
+                                <div class="flex-1 bg-gray-200 dark:bg-gray-600 rounded-full h-1.5">
+                                    <div class="bg-blue-500 h-1.5 rounded-full transition-all" style="width: ${(task.completed / task.total) * 100}%"></div>
+                                </div>
+                                <span class="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">${task.completed}/${task.total}</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-1 flex-shrink-0">
+                            <button onclick="selectTask(${task.id})" class="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded" title="Start">
+                                <i class="fas fa-play text-xs"></i>
+                            </button>
+                            <button onclick="deleteTask(${task.id})" class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded" title="Delete">
+                                <i class="fas fa-trash text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            updateActiveTaskDisplay();
+        }
+
+        function selectTask(id) {
+            state.currentTaskId = id;
+            renderTasks();
+            saveData();
+        }
+
+        function toggleTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                task.done = !task.done;
+                if (task.done && state.currentTaskId === id) {
+                    state.currentTaskId = null;
+                }
+                renderTasks();
+                saveData();
+            }
+        }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            if (state.currentTaskId === id) {
+                state.currentTaskId = null;
+            }
+            renderTasks();
+            saveData();
+        }
+
+        function updateActiveTaskDisplay() {
+            const activeDiv = document.getElementById('activeTask');
+            
+            if (state.currentTaskId) {
+                const task = tasks.find(t => t.id === state.currentTaskId);
+                if (task) {
+                    activeDiv.classList.remove('hidden');
+                    document.getElementById('activeTaskName').textContent = task.name;
+                    document.getElementById('activeTaskProgress').style.width = `${(task.completed / task.total) * 100}%`;
+                    document.getElementById('activeTaskText').textContent = `${task.completed}/${task.total}`;
+                    return;
+                }
+            }
+            
+            activeDiv.classList.add('hidden');
+        }
+
+        // ==================== THEME ====================
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('themeIcon');
+            
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                icon.className = 'fas fa-moon text-gray-700';
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.classList.add('dark');
+                icon.className = 'fas fa-sun text-gray-300';
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        function applyTheme() {
+            const theme = localStorage.getItem('theme') || 'light';
+            const icon = document.getElementById('themeIcon');
+            
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+                icon.className = 'fas fa-sun text-gray-300';
+            }
+        }
+
+        // ==================== STATISTICS ====================
+        function showStats() {
+            document.getElementById('totalSessions').textContent = stats.sessions;
+            document.getElementById('totalTime').textContent = `${Math.floor(stats.focusTime / 60)}h ${stats.focusTime % 60}m`;
+            document.getElementById('currentStreak').textContent = stats.streak;
+            document.getElementById('statsModal').classList.remove('hidden');
+        }
+
+        function hideStats() {
+            document.getElementById('statsModal').classList.add('hidden');
+        }
+
+        function clearStats() {
+            if (confirm('Clear all statistics? This cannot be undone.')) {
+                stats = { sessions: 0, focusTime: 0, streak: 0 };
+                saveData();
+                showStats();
+            }
+        }
+
+        // ==================== STORAGE ====================
+        function saveData() {
+            localStorage.setItem('pomodoroData', JSON.stringify({
+                settings, tasks, stats
+            }));
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('pomodoroData');
+            if (saved) {
+                const data = JSON.parse(saved);
+                settings = data.settings || settings;
+                tasks = data.tasks || [];
+                stats = data.stats || stats;
+                
+                document.getElementById('workDuration').value = settings.work;
+                document.getElementById('shortDuration').value = settings.short;
+                document.getElementById('longDuration').value = settings.long;
+                
+                renderTasks();
+            }
+        }
+
+        // ==================== NOTIFICATIONS ====================
+        function requestNotificationPermission() {
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        }
+
+        function playNotification() {
+            // Play sound
+            const audio = document.getElementById('notificationSound');
+            audio.volume = 0.5;
+            audio.play().catch(e => console.log('Audio failed:', e));
+            
+            // Show browser notification
+            if ('Notification' in window && Notification.permission === 'granted') {
+                const title = state.mode === 'work' ? '🎉 Work Session Complete!' : '☕ Break Time Over!';
+                const body = state.mode === 'work' ? 'Great job! Time for a break.' : 'Ready to focus again?';
+                
+                new Notification(title, { body });
+            }
+        }
+
+        // ==================== START APP ====================
+        init();
+    </script>
+</body>
+</html>
